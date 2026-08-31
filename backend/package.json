@@ -1,8 +1,8 @@
 {
-  "name": "kaarigari-backend",
-  "version": "1.0.0",
-  "private": true,
-  "type": "module",
-  "scripts": {"start":"node server.js","dev":"node --watch server.js","test":"node test.js"},
-  "dependencies": {"cors":"^2.8.5","express":"^5.1.0","multer":"^2.0.2"}
+  "name":"kaarigari-backend",
+  "version":"1.1.0",
+  "private":true,
+  "type":"module",
+  "scripts":{"start":"node server.js","dev":"node --watch server.js","test":"node test.js"},
+  "dependencies":{"cloudinary":"^2.7.0","cors":"^2.8.5","dotenv":"^17.2.1","express":"^5.1.0","multer":"^2.0.2","pg":"^8.16.3","razorpay":"^2.9.6"}
 }
