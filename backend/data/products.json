@@ -1,0 +1,6 @@
+[
+  {"id":"p1","name":"Indigo Bloom Handblock Dupatta","category":"Textiles","origin":"Jaipur, Rajasthan","price":1890,"artisan":"Meera Devi","rating":4.9,"stock":8},
+  {"id":"p2","name":"Terracotta Matka Set","category":"Pottery","origin":"Khurja, Uttar Pradesh","price":1450,"artisan":"Ramesh Kumar","rating":4.8,"stock":12},
+  {"id":"p3","name":"Sunset Cane Basket","category":"Baskets","origin":"Assam","price":980,"artisan":"Bina Bora","rating":4.7,"stock":6},
+  {"id":"p4","name":"Kutch Mirrorwork Cushion","category":"Textiles","origin":"Bhuj, Gujarat","price":1240,"artisan":"Sakina Khatri","rating":4.9,"stock":5}
+]
