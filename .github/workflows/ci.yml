@@ -17,3 +17,4 @@ jobs:
           cache-dependency-path: backend/package.json
       - run: npm install
       - run: node --check server.js
+      - run: npm start > /tmp/kaarigari.log 2>&1 & pid=$!; sleep 2; curl --fail http://127.0.0.1:8000/api/health; kill $pid
