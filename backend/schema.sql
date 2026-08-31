@@ -48,3 +48,18 @@ CREATE TABLE otp_sessions (
   expires_at TIMESTAMP NOT NULL,
   attempts INTEGER DEFAULT 0
 );
+
+CREATE TABLE sync_queue (
+  id TEXT PRIMARY KEY,
+  artisan_id TEXT NOT NULL REFERENCES users(id),
+  client_id TEXT NOT NULL,
+  payload TEXT NOT NULL,
+  status TEXT DEFAULT 'pending',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  synced_at TIMESTAMP
+);
+
+CREATE INDEX products_category_idx ON products(category);
+CREATE INDEX products_artisan_idx ON products(artisan_id);
+CREATE INDEX orders_customer_idx ON orders(customer_id);
+CREATE INDEX sync_queue_status_idx ON sync_queue(status);
