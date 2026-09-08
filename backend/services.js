@@ -12,17 +12,30 @@ export const config = {
   hasRazorpay: Boolean(process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET)
 };
 
+function twilioClient() {
+  return twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+}
+
+function normalizeIndianPhone(phone) {
+  const digits = String(phone || '').replace(/\D/g, '');
+  if (digits.length === 10) return `+91${digits}`;
+  if (digits.length === 12 && digits.startsWith('91')) return `+${digits}`;
+  throw new Error('Enter a valid Indian mobile number');
+}
+
 export async function sendOtp(phone) {
   if (!config.hasTwilio) throw new Error('Real SMS OTP is not configured. Add TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN and TWILIO_VERIFY_SERVICE_SID to backend/.env.');
-  const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
-  await client.verify.v2.services(process.env.TWILIO_VERIFY_SERVICE_SID).verifications.create({ to: `+91${phone}`, channel: 'sms' });
-  return { configured: true, demo: false, message: 'OTP sent' };
+  const client = twilioClient();
+  const to = normalizeIndianPhone(phone);
+  await client.verify.v2.services(process.env.TWILIO_VERIFY_SERVICE_SID).verifications.create({ to, channel: 'sms' });
+  return { configured: true, demo: false, message: 'OTP sent to your phone' };
 }
 
 export async function verifyOtp(phone, code) {
   if (!config.hasTwilio) throw new Error('Real SMS OTP is not configured.');
-  const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
-  const result = await client.verify.v2.services(process.env.TWILIO_VERIFY_SERVICE_SID).verificationChecks.create({ to: `+91${phone}`, code });
+  const client = twilioClient();
+  const to = normalizeIndianPhone(phone);
+  const result = await client.verify.v2.services(process.env.TWILIO_VERIFY_SERVICE_SID).verificationChecks.create({ to, code: String(code) });
   return { configured: true, valid: result.status === 'approved' };
 }
 
