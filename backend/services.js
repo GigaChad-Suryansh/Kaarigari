@@ -13,14 +13,14 @@ export const config = {
 };
 
 export async function sendOtp(phone) {
-  if (!config.hasTwilio) return { configured: false, demo: true, message: 'Twilio is not configured' };
+  if (!config.hasTwilio) throw new Error('Real SMS OTP is not configured. Add TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN and TWILIO_VERIFY_SERVICE_SID to backend/.env.');
   const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
   await client.verify.v2.services(process.env.TWILIO_VERIFY_SERVICE_SID).verifications.create({ to: `+91${phone}`, channel: 'sms' });
   return { configured: true, demo: false, message: 'OTP sent' };
 }
 
 export async function verifyOtp(phone, code) {
-  if (!config.hasTwilio) return { configured: false, valid: code === '123456' };
+  if (!config.hasTwilio) throw new Error('Real SMS OTP is not configured.');
   const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
   const result = await client.verify.v2.services(process.env.TWILIO_VERIFY_SERVICE_SID).verificationChecks.create({ to: `+91${phone}`, code });
   return { configured: true, valid: result.status === 'approved' };

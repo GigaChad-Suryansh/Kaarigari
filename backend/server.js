@@ -16,7 +16,6 @@ const products = [
   { id: 3, name: 'Sunset Cane Basket', category: 'Baskets', origin: 'Assam', price: 980, artisan: 'Bina Bora', rating: 4.7, stock: 16 },
   { id: 4, name: 'Kutch Mirrorwork Cushion', category: 'Textiles', origin: 'Bhuj, Gujarat', price: 1240, artisan: 'Sakina Khatri', rating: 4.9, stock: 5 }
 ];
-const otps = new Map();
 const orders = [];
 const syncQueue = [];
 const json = (res, body, status=200) => res.status(status).json(body);
@@ -29,9 +28,8 @@ app.post('/api/auth/send-otp', async (req, res) => {
   if (phone.length !== 10) return json(res, { error: 'Enter a valid 10-digit mobile number' }, 400);
   try {
     const result = await sendExternalOtp(phone);
-    if (result.demo) otps.set(phone, { code: '123456', expires: Date.now() + 5 * 60_000 });
-    json(res, { ok: true, ...result, ...(result.demo ? { demoOtp: '123456' } : {}) });
-  } catch (e) { json(res, { error: 'Unable to send OTP', detail: e.message }, 502); }
+    json(res, { ok: true, ...result });
+  } catch (e) { json(res, { error: e.message || 'Unable to send OTP' }, 503); }
 });
 
 app.post('/api/auth/verify-otp', async (req, res) => {
@@ -39,13 +37,12 @@ app.post('/api/auth/verify-otp', async (req, res) => {
   const code = String(req.body?.otp || '');
   const role = req.body?.role || 'customer';
   if (phone.length !== 10) return json(res, { error: 'Invalid phone number' }, 400);
+  if (!/^\d{6}$/.test(code)) return json(res, { error: 'OTP must be 6 digits' }, 400);
   try {
-    let valid;
-    if (config.hasTwilio) valid = (await verifyExternalOtp(phone, code)).valid;
-    else { const record = otps.get(phone); valid = Boolean(record && record.expires > Date.now() && code === record.code); otps.delete(phone); }
-    if (!valid) return json(res, { error: 'Invalid or expired OTP' }, 401);
-    json(res, { ok: true, token: `demo-${crypto.randomUUID()}`, role });
-  } catch (e) { json(res, { error: 'Unable to verify OTP', detail: e.message }, 502); }
+    const result = await verifyExternalOtp(phone, code);
+    if (!result.valid) return json(res, { error: 'Invalid or expired OTP' }, 401);
+    json(res, { ok: true, token: crypto.randomUUID(), role });
+  } catch (e) { json(res, { error: e.message || 'Unable to verify OTP' }, 503); }
 });
 
 app.get('/api/products', (req, res) => {
@@ -56,8 +53,8 @@ app.get('/api/products', (req, res) => {
 app.get('/api/products/:id', (req, res) => { const product = products.find(p => String(p.id) === req.params.id); if (!product) return json(res,{error:'Product not found'},404); json(res,{product,story:`Meet ${product.artisan}, a maker from ${product.origin}. This craft carries local techniques and a story that deserves to travel beyond its community.`}); });
 
 app.post('/api/orders', (req, res) => {
-  const { customerId='demo-customer', items=[], shippingAddress='' } = req.body || {};
-  if (!items.length || !shippingAddress.trim()) return json(res,{error:'Items and shipping address are required'},400);
+  const { customerId='customer', items=[], shippingAddress='' } = req.body || {};
+  if (!items.length || !String(shippingAddress).trim()) return json(res,{error:'Items and shipping address are required'},400);
   const lineItems = items.map(i => { const p=products.find(x=>String(x.id)===String(i.productId)); return p ? {productId:p.id,name:p.name,quantity:Math.max(1,Number(i.quantity||1)),unitPrice:p.price}:null; }).filter(Boolean);
   const total=lineItems.reduce((s,i)=>s+i.quantity*i.unitPrice,0); const order={id:crypto.randomUUID(),customerId,items:lineItems,total,shippingAddress,status:'placed',createdAt:new Date().toISOString()}; orders.push(order); json(res,{ok:true,order});
 });
