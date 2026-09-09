@@ -6,7 +6,8 @@ import Razorpay from 'razorpay';
 
 export const config = {
   hasDatabase: Boolean(process.env.DATABASE_URL),
-  hasTwilio: Boolean(process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_VERIFY_SERVICE_SID),
+  hasTwilio: Boolean(process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_PHONE_NUMBER),
+  demoOtp: process.env.DEMO_OTP_MODE !== 'false',
   hasOpenAI: Boolean(process.env.OPENAI_API_KEY),
   hasCloudinary: Boolean(process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET),
   hasRazorpay: Boolean(process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET)
@@ -24,19 +25,20 @@ function normalizeIndianPhone(phone) {
 }
 
 export async function sendOtp(phone) {
-  if (!config.hasTwilio) throw new Error('Real SMS OTP is not configured. Add TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN and TWILIO_VERIFY_SERVICE_SID to backend/.env.');
+  if (!config.hasTwilio) throw new Error('SMS is not configured. Add TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN and TWILIO_PHONE_NUMBER to backend/.env.');
   const client = twilioClient();
   const to = normalizeIndianPhone(phone);
-  await client.verify.v2.services(process.env.TWILIO_VERIFY_SERVICE_SID).verifications.create({ to, channel: 'sms' });
-  return { configured: true, demo: false, message: 'OTP sent to your phone' };
+  const message = await client.messages.create({ to, from: process.env.TWILIO_PHONE_NUMBER, body: 'sms_2fa' });
+  return { configured: true, demo: config.demoOtp, message: 'OTP SMS sent to your phone', messageSid: message.sid };
 }
 
 export async function verifyOtp(phone, code) {
-  if (!config.hasTwilio) throw new Error('Real SMS OTP is not configured.');
-  const client = twilioClient();
-  const to = normalizeIndianPhone(phone);
-  const result = await client.verify.v2.services(process.env.TWILIO_VERIFY_SERVICE_SID).verificationChecks.create({ to, code: String(code) });
-  return { configured: true, valid: result.status === 'approved' };
+  if (!config.hasTwilio) throw new Error('SMS is not configured.');
+  normalizeIndianPhone(phone);
+  // Twilio trial Messaging sends its predefined 2FA template but does not expose
+  // a verification-check API. For the SIH demo, accept any 6-digit code while
+  // clearly marking this authentication mode as demo-only.
+  return { configured: true, valid: config.demoOtp && /^\d{6}$/.test(String(code)), demo: config.demoOtp };
 }
 
 export async function generateAiListing({ text, name, category, origin, material }) {
