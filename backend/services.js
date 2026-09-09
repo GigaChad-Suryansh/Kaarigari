@@ -6,7 +6,7 @@ import Razorpay from 'razorpay';
 
 export const config = {
   hasDatabase: Boolean(process.env.DATABASE_URL),
-  hasTwilio: Boolean(process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_PHONE_NUMBER),
+  hasTwilio: Boolean(process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_VERIFY_SERVICE_SID),
   hasOpenAI: Boolean(process.env.OPENAI_API_KEY),
   hasCloudinary: Boolean(process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET),
   hasRazorpay: Boolean(process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET)
@@ -23,50 +23,20 @@ function normalizeIndianPhone(phone) {
   throw new Error('Enter a valid Indian mobile number');
 }
 
-// Demo-friendly OTP store for the Twilio trial Messaging flow.
-// Twilio trial Messaging only permits predefined bodies such as sms_2fa,
-// so the code is extracted from Twilio's rendered message response when available.
-const otpStore = new Map();
-const OTP_TTL_MS = 5 * 60 * 1000;
-const OTP_MAX_ATTEMPTS = 5;
-
 export async function sendOtp(phone) {
-  if (!config.hasTwilio) throw new Error('SMS OTP is not configured. Add TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN and TWILIO_PHONE_NUMBER to backend/.env.');
+  if (!config.hasTwilio) throw new Error('Real SMS OTP is not configured. Add TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN and TWILIO_VERIFY_SERVICE_SID to backend/.env.');
   const client = twilioClient();
   const to = normalizeIndianPhone(phone);
-
-  const message = await client.messages.create({
-    to,
-    from: process.env.TWILIO_PHONE_NUMBER,
-    body: 'sms_2fa'
-  });
-
-  const renderedBody = String(message.body || '');
-  const match = renderedBody.match(/\b(\d{6})\b/);
-  if (!match) {
-    throw new Error('Twilio sent the trial SMS, but its API response did not expose a 6-digit code. Twilio Verify is required for a production-grade OTP flow.');
-  }
-
-  otpStore.set(to, { code: match[1], expiresAt: Date.now() + OTP_TTL_MS, attempts: 0 });
-  return { configured: true, demo: false, message: 'OTP sent to your phone', messageSid: message.sid };
+  await client.verify.v2.services(process.env.TWILIO_VERIFY_SERVICE_SID).verifications.create({ to, channel: 'sms' });
+  return { configured: true, demo: false, message: 'OTP sent to your phone' };
 }
 
 export async function verifyOtp(phone, code) {
-  if (!config.hasTwilio) throw new Error('SMS OTP is not configured.');
+  if (!config.hasTwilio) throw new Error('Real SMS OTP is not configured.');
+  const client = twilioClient();
   const to = normalizeIndianPhone(phone);
-  const entry = otpStore.get(to);
-  if (!entry || Date.now() > entry.expiresAt) {
-    otpStore.delete(to);
-    return { configured: true, valid: false };
-  }
-  entry.attempts += 1;
-  if (entry.attempts > OTP_MAX_ATTEMPTS) {
-    otpStore.delete(to);
-    return { configured: true, valid: false };
-  }
-  const valid = String(code) === entry.code;
-  if (valid) otpStore.delete(to);
-  return { configured: true, valid };
+  const result = await client.verify.v2.services(process.env.TWILIO_VERIFY_SERVICE_SID).verificationChecks.create({ to, code: String(code) });
+  return { configured: true, valid: result.status === 'approved' };
 }
 
 export async function generateAiListing({ text, name, category, origin, material }) {
