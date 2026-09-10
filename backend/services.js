@@ -14,8 +14,8 @@ export const config = {
 };
 function twilioClient(){return twilio(process.env.TWILIO_ACCOUNT_SID,process.env.TWILIO_AUTH_TOKEN)}
 function normalizeIndianPhone(phone){const digits=String(phone||'').replace(/\D/g,'');if(digits.length===10)return `+91${digits}`;if(digits.length===12&&digits.startsWith('91'))return `+${digits}`;throw new Error('Enter a valid Indian mobile number')}
-export async function sendOtp(phone){if(!config.hasTwilio)throw new Error('SMS is not configured. Add TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN and TWILIO_PHONE_NUMBER to backend/.env.');const client=twilioClient(),to=normalizeIndianPhone(phone);const message=await client.messages.create({to,from:process.env.TWILIO_PHONE_NUMBER,body:'sms_2fa'});return{configured:true,demo:config.demoOtp,message:'OTP SMS sent to your phone',messageSid:message.sid}}
-export async function verifyOtp(phone,code){if(!config.hasTwilio)throw new Error('SMS is not configured.');normalizeIndianPhone(phone);return{configured:true,valid:config.demoOtp&&/^\d{6}$/.test(String(code)),demo:config.demoOtp}}
+export async function sendOtp(phone){const to=normalizeIndianPhone(phone);if(!config.hasTwilio){if(config.demoOtp)return{configured:false,demo:true,message:'Demo OTP enabled. Use any 6-digit code.'};throw new Error('SMS is not configured. Add Twilio credentials to the backend environment.')}const client=twilioClient();const message=await client.messages.create({to,from:process.env.TWILIO_PHONE_NUMBER,body:'sms_2fa'});return{configured:true,demo:config.demoOtp,message:'OTP SMS sent to your phone',messageSid:message.sid}}
+export async function verifyOtp(phone,code){normalizeIndianPhone(phone);if(!config.hasTwilio){if(config.demoOtp)return{configured:false,valid:/^\d{6}$/.test(String(code)),demo:true};throw new Error('SMS is not configured.')}return{configured:true,valid:config.demoOtp&&/^\d{6}$/.test(String(code)),demo:config.demoOtp}}
 export async function generateAiListing({text,name,category,origin,material,technique}){
  if(!config.hasOpenAI)return null;
  const client=new OpenAI({apiKey:process.env.OPENAI_API_KEY});
